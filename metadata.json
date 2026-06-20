@@ -1,0 +1,7 @@
+{
+  "name": "Venta Markets",
+  "description": "Platform edukasi dan tools trading forex. Berisi modul basic, akademi, sinyal gratis, dan mini games.",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

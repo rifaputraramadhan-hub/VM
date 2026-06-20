@@ -1,0 +1,24 @@
+{
+  "name": "Venta Markets",
+  "short_name": "Venta Markets",
+  "description": "Platform edukasi dan tools trading forex. Berisi modul basic, akademi, sinyal gratis, dan mini games.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F0F2F5",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn.phototourl.com/free/2026-06-17-699c7b18-fd36-4ca3-b1f5-bb2cbee82422.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://cdn.phototourl.com/free/2026-06-17-699c7b18-fd36-4ca3-b1f5-bb2cbee82422.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
