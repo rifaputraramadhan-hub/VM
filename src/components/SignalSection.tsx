@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, onValue, off, get } from 'firebase/database';
+import { getDatabase, ref, onValue, off, get, set } from 'firebase/database';
+import { getMessaging, getToken } from 'firebase/messaging';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, Lock, Calculator, TrendingUp, AlertCircle, ExternalLink, Bell, CheckCircle2 } from 'lucide-react';
 
@@ -52,17 +53,100 @@ export function SignalSection() {
       alert('Browser Anda tidak mendukung Web Notifications.');
       return;
     }
-    Notification.requestPermission().then((permission) => {
-      // @ts-ignore
-      setNotifState(permission);
-      if (permission === 'granted') {
-        new Notification('Update Signal VM', {
-          body: 'Notifikasi untuk update signal VM sudah aktif!',
-          icon: 'https://cdn.phototourl.com/free/2026-06-17-699c7b18-fd36-4ca3-b1f5-bb2cbee82422.png',
-        });
-      }
-    });
+    
+    // In an iframe (like AI Studio preview), requestPermission might be restricted.
+    // Try requesting permission.
+    try {
+      Notification.requestPermission().then((permission) => {
+        // @ts-ignore
+        setNotifState(permission);
+        if (permission === 'granted') {
+          // Subscribe to FCM Push Notifications
+          try {
+            const messaging = getMessaging(app);
+            getToken(messaging, { vapidKey: 'BHL6tdIStEJDi5KKUq27tCacKVTznc9CYzL4TlfSJKQsJvCg3OJ0RLh3lRYDjJ8YHr7-4FlZVId7vAUyw3fIhaA' })
+              .then((currentToken) => {
+                if (currentToken) {
+                  // Save token to database
+                  const sanitizedToken = currentToken.replace(/[.#$[\]]/g, '');
+                  const tokenRef = ref(database, 'fcm_tokens/' + sanitizedToken);
+                  set(tokenRef, {
+                    token: currentToken,
+                    timestamp: Date.now()
+                  }).catch(e => console.log('Gagal menyimpan token FCM:', e));
+                }
+              }).catch(e => console.log('Gagal mendapatkan token FCM:', e));
+          } catch (e) {
+            console.log('Firebase messaging Error (Mungkin ad blocker atau incognito):', e);
+          }
+
+          try {
+            new Notification('Update Signal VM', {
+              body: 'Notifikasi untuk update signal VM sudah aktif! Anda akan mendapatkan notifikasi harian walau aplikasi ditutup.',
+              icon: 'https://cdn.phototourl.com/free/2026-06-17-699c7b18-fd36-4ca3-b1f5-bb2cbee82422.png',
+            });
+          } catch (e) {
+            console.error("Error showing notification:", e);
+            alert("Notifikasi diizinkan, tetapi diblokir oleh sistem (mungkin karena sedang di dalam iframe/preview). Buka aplikasi di tab baru atau install untuk melihat notifikasi (PWA).");
+          }
+        } else if (permission === 'denied') {
+          alert("Izin notifikasi ditolak oleh browser Anda. Mohon izinkan notifikasi di pengaturan browser.");
+        }
+      }).catch(err => {
+         console.error("Error requesting permission", err);
+         alert("Gagal meminta izin notifikasi. Jika Anda berada di preview/iframe, cobalah buka di tab baru.");
+      });
+    } catch (e) {
+      console.error("Error:", e);
+    }
   };
+
+  // Global listener for new signals
+  useEffect(() => {
+    if (notifState !== 'granted') return;
+
+    const signalsRef = ref(database, 'active_signals');
+    
+    // Gunakan listener onValue untuk deteksi penambahan sinyal baru setelah load awal
+    let initialLoad = true;
+    let previousSignalCount = 0;
+
+    const unsubscribe = onValue(signalsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      const currentSignals = Object.keys(data);
+      const currentCount = currentSignals.length;
+
+      if (initialLoad) {
+        previousSignalCount = currentCount;
+        initialLoad = false;
+        return;
+      }
+
+      // Jika ada sinyal bertambah
+      if (currentCount > previousSignalCount) {
+        try {
+          // Cari ID sinyal baru
+          const latestSignalId = currentSignals[currentSignals.length - 1];
+          const signalData = data[latestSignalId];
+          
+          if (signalData) {
+            new Notification('Update Signal VM 🚀', {
+              body: `Sinyal baru: ${signalData.pair} - ${signalData.tipe}. Cek aplikasinya sekarang!`,
+              icon: 'https://cdn.phototourl.com/free/2026-06-17-699c7b18-fd36-4ca3-b1f5-bb2cbee82422.png',
+            });
+          }
+        } catch (e) {
+          console.error("Gagal menampilkan notifikasi sinyal baru", e);
+        }
+      }
+      
+      previousSignalCount = currentCount;
+    });
+
+    return () => off(signalsRef, 'value', unsubscribe);
+  }, [notifState]);
 
   useEffect(() => {
     if (lotBal > 0 && lotRisk > 0 && lotSl > 0) {
@@ -152,38 +236,31 @@ export function SignalSection() {
       {view === 'menu' ? (
         <div className="space-y-8">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Live Outlook Signal</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Pilih ruang analisa untuk melihat peta arah market secara real-time.
-            </p>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
-              <p className="text-[11px] leading-relaxed text-yellow-800">
-                <span className="font-bold">⚠️ DISCLAIMER:</span> Setup trading hanyalah referensi pandangan teknikal pribadi, BUKAN ajakan/jaminan mutlak. Segala keputusan perdagangan sepenuhnya tanggung jawab trader.
-              </p>
-            </div>
-
-            {/* Daily Signal Notification Toggle */}
-            <div className="mb-6 bg-[#f8fafc] border border-gray-200 rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${notifState === 'granted' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-                  {notifState === 'granted' ? <CheckCircle2 className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-xs sm:text-sm">Notifikasi Update Harian</h3>
-                  <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Dapatkan notifikasi jika ada sinyal trading terbaru</p>
-                </div>
-              </div>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl font-bold text-gray-900">Live Outlook Signal</h2>
               <button
                 onClick={handleEnableNotifications}
                 disabled={notifState === 'granted' || notifState === 'denied'}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                  notifState === 'granted' ? 'bg-green-50 text-green-600 border border-green-200 cursor-default' : 
-                  notifState === 'denied' ? 'bg-red-50 text-red-600 border border-red-200 cursor-not-allowed' :
-                  'bg-blue-600 shrink-0 text-white hover:bg-blue-700 shadow-md active:scale-95'
+                title="Notifikasi Sinyal Harian"
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm border ${
+                  notifState === 'granted' ? 'bg-green-50 text-green-600 border-green-200 cursor-default' : 
+                  notifState === 'denied' ? 'bg-red-50 text-red-600 border-red-200 cursor-not-allowed' :
+                  'bg-white text-blue-600 border-gray-200 hover:bg-blue-50 active:scale-95'
                 }`}
               >
-                {notifState === 'granted' ? 'Aktif' : notifState === 'denied' ? 'Ditolak' : 'Aktifkan'}
+                {notifState === 'granted' ? <CheckCircle2 className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                <span className="hidden sm:inline">
+                  {notifState === 'granted' ? 'Notif Aktif' : notifState === 'denied' ? 'Notif Ditolak' : 'Aktifkan Notif'}
+                </span>
               </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Pilih ruang analisa untuk melihat peta arah market secara real-time.
+            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-6">
+              <p className="text-[11px] leading-relaxed text-yellow-800">
+                <span className="font-bold">⚠️ DISCLAIMER:</span> Setup trading hanyalah referensi pandangan teknikal pribadi, BUKAN ajakan/jaminan mutlak. Segala keputusan perdagangan sepenuhnya tanggung jawab trader.
+              </p>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
