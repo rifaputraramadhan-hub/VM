@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   BookOpen,
   Gamepad2,
@@ -326,12 +326,16 @@ export default function App() {
         {/* Main Application Area */}
         <div className="flex-1 flex flex-col h-full bg-[#fcfcfc] overflow-y-auto pb-6 md:pb-0">
           <main className="p-4 md:p-8 max-w-5xl mx-auto w-full pb-24 md:pb-24 flex-1 flex flex-col">
-            {activeTab === "home" && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex flex-col flex-1 pb-16"
-              >
+            <AnimatePresence mode="wait">
+              {activeTab === "home" && (
+                <motion.div
+                  key="home"
+                  initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="flex flex-col flex-1 pb-16"
+                >
                 {/* Replaced Portfolio Card with Logo Hero */}
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
@@ -430,8 +434,11 @@ export default function App() {
 
             {activeTab === "market" && (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                key="market"
+                initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
                 className="flex flex-col flex-1 pb-16 h-full"
               >
                 <div className="mb-6 shrink-0">
@@ -450,8 +457,11 @@ export default function App() {
 
             {activeTab === "calendar" && (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                key="calendar"
+                initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
                 className="flex flex-col flex-1 pb-16"
               >
                 <div className="mb-4 shrink-0">
@@ -470,8 +480,11 @@ export default function App() {
 
             {activeTab === "news" && (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                key="news"
+                initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
                 className="flex flex-col flex-1 pb-16 h-full"
               >
                 <div className="mb-6 shrink-0">
@@ -487,6 +500,7 @@ export default function App() {
                 </div>
               </motion.div>
             )}
+            </AnimatePresence>
           </main>
 
           {/* Fixed Bottom Navigation */}
